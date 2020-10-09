@@ -1,0 +1,98 @@
+%% compile temporaries
+*.o
+*.a
+*.so
+*.swp
+parser.tab.h
+parser.tab.cpp
+parser.tab.hpp
+parser.output
+lex.yy.c
+*_moc.cpp
+*_ui.h
+callgrind.out.*
+
+%% EXECUTABLE
+*.exe
+
+
+%% IDE temporaries
+*.kdev4
+vc60.idb
+.*.config
+.*.creator
+.*.creator.user*
+.*.files
+.*.includes
+
+.cproject
+.project
+*eclipse*
+
+tags
+.cccc
+
+*.orig
+
+# PYTHON
+*.pyc
+_*.py
+
+
+# EXECUTION
+core
+CORE
+*.log
+
+
+%% BACKUP/temporary files
+*.tmp
+*.dat
+nogit*
+*~
+z.*
+z/
+MT.log
+.#*#
+.#*
+#*#
+
+
+%% MAKE
+Makefile.dep
+Make.lock
+.lastMake
+makefile
+
+
+%% CMAKE
+CMakeCache.txt
+CMakeFiles
+cmake_install.cmake
+CMakeLists.txt.user
+CTestTestfile.cmake
+
+
+%% SWIG
+*_wrap.cxx
+ors.py
+orspy.py
+
+
+%% LATEX
+*.aux
+*.dvi
+*.log
+*.out
+*.toc
+*.tdo
+*.blg
+*.bbl
+*.snm
+*.nav
+*.ilg
+*.ind
+*.fdb_latexmk
+_region_.*
+
+
