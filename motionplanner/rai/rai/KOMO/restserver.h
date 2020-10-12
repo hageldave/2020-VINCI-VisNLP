@@ -1,7 +1,7 @@
 #pragma once
 #include <Core/util.h>
 #include <Optim/constrained.h>
-#include <httplib/httplib.h>
+#include "httplib.h"
 
 struct Restserver : NonCopyable {
   OptConstrained *opt=0;
