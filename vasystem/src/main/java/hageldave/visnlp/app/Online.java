@@ -121,6 +121,21 @@ import smile.projection.PCA;
 
 public class Online {
 
+	static enum Problem {
+		problem0("../motionplanner/problem0/z.log", "http:127.0.0.1:8080"),
+		problem1("../motionplanner/problem1/z.log", "http:127.0.0.1:8081"),
+		problem2("../motionplanner/problem2/z.log", "http:127.0.0.1:8082"),
+		;
+		
+		String logfile;
+		String komoserver;
+		
+		private Problem(String logfile, String komoserver) {
+			this.logfile=logfile;
+			this.komoserver=komoserver;
+		}
+	}
+	
 	static class TrajectoryDisplayMode {
 		String name;
 
@@ -186,12 +201,14 @@ public class Online {
 		
 		// study cases
 		
-		KomoLog log = KomoLog.loadLog(new File("/home_local/haegeldd/git/KOMO/demo/z.log")); komoserver = "http:127.0.0.1:8083";
+//		KomoLog log = KomoLog.loadLog(new File("/home_local/haegeldd/git/KOMO/demo/z.log")); komoserver = "http:127.0.0.1:8083";
 //		KomoLog log = KomoLog.loadLog(new File("/home_local/haegeldd/git/KOMO/problem0/z.log")); komoserver = "http:127.0.0.1:8080";
 //		KomoLog log = KomoLog.loadLog(new File("/home_local/haegeldd/git/KOMO/problem1/z.log")); komoserver = "http:127.0.0.1:8081";
 //		KomoLog log = KomoLog.loadLog(new File("/home_local/haegeldd/git/KOMO/problem2/z.log")); komoserver = "http:127.0.0.1:8082";
 		
-		
+		Problem prob = Problem.valueOf(args[0]);
+		KomoLog log = KomoLog.loadLog(new File(prob.logfile));
+		komoserver = prob.komoserver;
 		
 		
 		
