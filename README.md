@@ -1,9 +1,7 @@
 # 2020-VINCI-VisNLP
 Code supplement for 
-
-__Visualization of Nonlinear Programming for Robot Motion Planning__
-
-*David Hägele, Moataz Abdelaal, Ozgur S. Oguz, Marc Toussaint, Daniel Weiskopf*
+>D. Hägele, M. Abdelaal, O. Oguz, M. Toussaint, D. Weiskopf:
+>Visualization of Nonlinear Programming for Robot Motion Planning
 
 submitted to VINCI 2020.
 
