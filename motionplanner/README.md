@@ -10,5 +10,6 @@ On Ubuntu 18.04:
 ```
 make -j1 installUbuntuAll    # calls sudo apt-get install; you can always interrupt
 make                         # builds libs
-cd demo; make; ./x.exe       # run the demo
+cd problem0; make; ./x.exe   # run the first problem
+[CTRL] c                     # terminate program (is idling to handle http requests)
 ```
