@@ -2,8 +2,18 @@
 Code supplement for 
 >D. Hägele, M. Abdelaal, O. Oguz, M. Toussaint, D. Weiskopf:
 >Visualization of Nonlinear Programming for Robot Motion Planning
-
 submitted to VINCI 2020.
+
+Citation:
+```tex
+@inproceedings{vinci20haegele,
+  author     = {H\"agele, David and Abdelaal, Moataz and Oguz, Ozgur and Toussaint, Marc and Weiskopf, Daniel},
+  title      = {Visualization of Nonlinear Programming for Robot Motion Planning},
+  booktitle  = {Proceedings of the 13th International Symposium on Visual Information Communication and Interaction},
+  year       = {2020},
+  doi        = {10.1145/3430036.3430050},
+}
+````
 
 ![image of GUI](gui.png)
 
