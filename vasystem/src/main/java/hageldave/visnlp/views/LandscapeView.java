@@ -1268,7 +1268,7 @@ public class LandscapeView {
 	}
 
 	static double tol = 1e-5;
-	static SimpleMatrix getPerpendicualarInPlane(SimpleMatrix v, SimpleMatrix p1, SimpleMatrix p2) {
+	public static SimpleMatrix getPerpendicualarInPlane(SimpleMatrix v, SimpleMatrix p1, SimpleMatrix p2) {
 		double dot1 = p1.dot(v);
 		double dot2 = p2.dot(v);
 		if(Math.abs(dot1) < tol)
