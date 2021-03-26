@@ -161,14 +161,10 @@ public class TrajectoryProjectionGoodness {
 			case GLOBAL_TOARGMIN_LOCAL_PCA:
 				p1_ = MatUtil.normalizeInPlace(MatUtil.vectorOf(traj[idx2]).minus(MatUtil.vectorOf(traj[0])));
 				break;
-			case LOCAL_T
-			
-				break;
-
 			default:
 				break;
 			}
-			SimpleMatrix p1_ = MatUtil.normalizeInPlace(MatUtil.vectorOf(traj[idx2]).minus(MatUtil.vectorOf(traj[0])));
+			p1_ = MatUtil.normalizeInPlace(MatUtil.vectorOf(traj[idx2]).minus(MatUtil.vectorOf(traj[0])));
 			SimpleMatrix p2_ = LandscapeView.getPerpendicularInPlane(p1_, p1[i], p2[i]);
 //			plane1Vecs[i] = p1_;
 //			plane2Vecs[i] = p2_;
