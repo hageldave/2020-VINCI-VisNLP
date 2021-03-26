@@ -22,10 +22,27 @@ public class TrajectoryProjectionGoodness {
 	
 	public static void main(String[] args) throws IOException {
 		File logfile = new File("../motionplanner/problem0/z.log");
-		assess(logfile, true, false);
+		PlaneOrientationStrategy strategy = PlaneOrientationStrategy.GLOBAL_TOARGMIN_GLOBAL_PCA;
+		assess(logfile, strategy, false);
+	}
+	
+	static enum PlaneOrientationStrategy {
+		GLOBAL_TOARGMIN_GLOBAL_PCA(true),
+		GLOBAL_PCA(true),
+		GLOBAL_TOARGMIN_LOCAL_PCA(false),
+		LOCAL_TOARGMIN_GLOBAL_PCA(true),
+		LOCAL_TOARGMIN_LOCAL_PCA(false),
+		LOCAL_PCA(false),
+		;
+		
+		public final boolean globalPCA;
+		
+		private PlaneOrientationStrategy(boolean globalpca) {
+			this.globalPCA = globalpca;
+		}
 	}
 
-	public static void assess(File logfile, boolean globalPCA, boolean inverseStepsizeWeighting) throws IOException {
+	public static void assess(File logfile, PlaneOrientationStrategy strategy, boolean inverseStepsizeWeighting) throws IOException {
 		KomoLog log = KomoLog.loadLog(logfile);
 		double[][] traj = log.streamGraphQueriesX()
 				.map(MatUtil::stackVectors)
@@ -36,7 +53,6 @@ public class TrajectoryProjectionGoodness {
 		// calculate average step sizes for inversely weighting trajectory points
 		for(int i=0; i<log.numGraphQueries-1; i++) {
 			SimpleMatrix step = MatUtil.vectorOf(traj[i+1]).minus(MatUtil.vectorOf(traj[i]));
-			double sum = step.elementSum();
 			avgStepsize[i] = step.normF()+0.0001;
 		} 
 		avgStepsize[log.numGraphQueries-1] = avgStepsize[log.numGraphQueries-2];
@@ -61,7 +77,7 @@ public class TrajectoryProjectionGoodness {
 
 		SimpleMatrix[] pcas = new SimpleMatrix[log.numGraphQueries];
 		
-		if(globalPCA){
+		if(strategy.globalPCA){
 			// global pca
 			int skip = traj.length/8;
 			double[][] meansAndVariances = DataPrep.getMeansAndVariances(Arrays.copyOfRange(data, skip, data.length));
@@ -115,19 +131,17 @@ public class TrajectoryProjectionGoodness {
 			);
 		}
 		
-		// calculate plane orientations
-		SimpleMatrix[] p1,p2,p1T,p2T, pca2D;
+		// extract 2 principal vectors
+		SimpleMatrix[] p1,p2, pca2D;
 		p1=new SimpleMatrix[log.numGraphQueries];
 		p2=new SimpleMatrix[log.numGraphQueries];
-		p1T=new SimpleMatrix[log.numGraphQueries];
-		p2T=new SimpleMatrix[log.numGraphQueries];
 		pca2D=new SimpleMatrix[log.numGraphQueries];
 		for(int k=0; k<log.numGraphQueries; k++){
-			// plane spanning vectors
-			p1T[k] = pcas[k].extractVector(true, 0);
-			p2T[k] = pcas[k].extractVector(true, 1);
-			p1[k]=p1T[k].transpose();
-			p2[k]=p2T[k].transpose();
+			// principal vectors
+			SimpleMatrix p1T = pcas[k].extractVector(true, 0);
+			SimpleMatrix p2T = pcas[k].extractVector(true, 1);
+			p1[k]=p1T.transpose();
+			p2[k]=p2T.transpose();
 			pca2D[k] = pcas[k].extractMatrix(0, 2, 0, pcas[k].numCols());
 		}
 		
@@ -140,8 +154,22 @@ public class TrajectoryProjectionGoodness {
 			if(idx1 == log.numGraphQueries-1) {
 				idx1--;
 			}
+			// first direction
+			SimpleMatrix p1_;
+			switch (strategy) {
+			case GLOBAL_TOARGMIN_GLOBAL_PCA:
+			case GLOBAL_TOARGMIN_LOCAL_PCA:
+				p1_ = MatUtil.normalizeInPlace(MatUtil.vectorOf(traj[idx2]).minus(MatUtil.vectorOf(traj[0])));
+				break;
+			case LOCAL_T
+			
+				break;
+
+			default:
+				break;
+			}
 			SimpleMatrix p1_ = MatUtil.normalizeInPlace(MatUtil.vectorOf(traj[idx2]).minus(MatUtil.vectorOf(traj[0])));
-			SimpleMatrix p2_ = LandscapeView.getPerpendicualarInPlane(p1_, p1[i], p2[i]);
+			SimpleMatrix p2_ = LandscapeView.getPerpendicularInPlane(p1_, p1[i], p2[i]);
 //			plane1Vecs[i] = p1_;
 //			plane2Vecs[i] = p2_;
 			plane2Vecs[i] = MatUtil.vector(p1_.getNumElements());

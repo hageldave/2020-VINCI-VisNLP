@@ -366,7 +366,7 @@ public class LandscapeView {
 				idx1--;
 			}
 			SimpleMatrix p1_ = MatUtil.normalizeInPlace(MatUtil.vectorOf(trajecData[idx2]).minus(MatUtil.vectorOf(trajecData[idx1])));
-			SimpleMatrix p2_ = getPerpendicualarInPlane(p1_, p1[i], p2[i]);
+			SimpleMatrix p2_ = getPerpendicularInPlane(p1_, p1[i], p2[i]);
 			plane1Vecs[i] = p1_;
 			plane2Vecs[i] = p2_;
 		}
@@ -508,7 +508,7 @@ public class LandscapeView {
 					return new SimpleMatrix[] {p1_,p2_,projection};
 				} else {
 					SimpleMatrix p1_ = MatUtil.normalizeInPlace(MatUtil.vectorOf(trajecData[idx2]).minus(MatUtil.vectorOf(trajecData[idx1])));
-					SimpleMatrix p2_ = getPerpendicualarInPlane(p1_, globalPCA.extractVector(true, 0).transpose(), globalPCA.extractVector(true, 1).transpose());
+					SimpleMatrix p2_ = getPerpendicularInPlane(p1_, globalPCA.extractVector(true, 0).transpose(), globalPCA.extractVector(true, 1).transpose());
 					
 					SimpleMatrix projection = MatUtil.rowmajorMat(new double[][] {p1_.getDDRM().data,p2_.getDDRM().data});
 					return new SimpleMatrix[] {p1_,p2_,projection};
@@ -1268,7 +1268,7 @@ public class LandscapeView {
 	}
 
 	static double tol = 1e-5;
-	public static SimpleMatrix getPerpendicualarInPlane(SimpleMatrix v, SimpleMatrix p1, SimpleMatrix p2) {
+	public static SimpleMatrix getPerpendicularInPlane(SimpleMatrix v, SimpleMatrix p1, SimpleMatrix p2) {
 		double dot1 = p1.dot(v);
 		double dot2 = p2.dot(v);
 		if(Math.abs(dot1) < tol)
