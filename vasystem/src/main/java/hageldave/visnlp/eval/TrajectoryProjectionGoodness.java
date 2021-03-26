@@ -22,8 +22,8 @@ public class TrajectoryProjectionGoodness {
 	
 	public static void main(String[] args) throws IOException {
 		File logfile = new File("../motionplanner/problem0/z.log");
-		PlaneOrientationStrategy strategy = PlaneOrientationStrategy.GLOBAL_TOARGMIN_GLOBAL_PCA;
-		assess(logfile, strategy, false);
+		PlaneOrientationStrategy strategy = PlaneOrientationStrategy.GLOBAL_PCA;
+		assess(logfile, strategy, true);
 	}
 	
 	static enum PlaneOrientationStrategy {
@@ -57,7 +57,7 @@ public class TrajectoryProjectionGoodness {
 		} 
 		avgStepsize[log.numGraphQueries-1] = avgStepsize[log.numGraphQueries-2];
 		// smooth stepsizes for averaging
-		DataPrep.boxSmoothing(avgStepsize, avgStepsize, 7);
+		DataPrep.boxSmoothing(avgStepsize, avgStepsize, 5);
 
 		final int dimensionality = traj[0].length;
 		double[][] data = DataPrep.copy(traj);
@@ -150,7 +150,7 @@ public class TrajectoryProjectionGoodness {
 		SimpleMatrix[] plane2Vecs = new SimpleMatrix[log.numGraphQueries];
 		for(int i=0; i<log.numGraphQueries; i++) {
 			int idx1 = i;
-			int idx2 = log.numGraphQueries-1;
+			int idxLast = log.numGraphQueries-1;
 			if(idx1 == log.numGraphQueries-1) {
 				idx1--;
 			}
@@ -159,18 +159,40 @@ public class TrajectoryProjectionGoodness {
 			switch (strategy) {
 			case GLOBAL_TOARGMIN_GLOBAL_PCA:
 			case GLOBAL_TOARGMIN_LOCAL_PCA:
-				p1_ = MatUtil.normalizeInPlace(MatUtil.vectorOf(traj[idx2]).minus(MatUtil.vectorOf(traj[0])));
+				p1_ = MatUtil.normalizeInPlace(MatUtil.vectorOf(traj[idxLast]).minus(MatUtil.vectorOf(traj[0])));
+				break;
+			case LOCAL_TOARGMIN_GLOBAL_PCA:
+			case LOCAL_TOARGMIN_LOCAL_PCA:
+				p1_ = MatUtil.normalizeInPlace(MatUtil.vectorOf(traj[idxLast]).minus(MatUtil.vectorOf(traj[idx1])));
+				break;
+			case GLOBAL_PCA:
+			case LOCAL_PCA:
+				p1_ = p1[i];
 				break;
 			default:
-				break;
+				throw new RuntimeException("unhandled case " + strategy);
 			}
-			p1_ = MatUtil.normalizeInPlace(MatUtil.vectorOf(traj[idx2]).minus(MatUtil.vectorOf(traj[0])));
-			SimpleMatrix p2_ = LandscapeView.getPerpendicularInPlane(p1_, p1[i], p2[i]);
-//			plane1Vecs[i] = p1_;
-//			plane2Vecs[i] = p2_;
-			plane2Vecs[i] = MatUtil.vector(p1_.getNumElements());
-			plane1Vecs[i] = p1[i];
-//			plane2Vecs[i] = p2[i];
+			
+			// second direction
+			SimpleMatrix p2_;
+			switch (strategy) {
+			case GLOBAL_PCA:
+			case LOCAL_PCA:
+				p2_ = p2[i];
+				break;
+			case GLOBAL_TOARGMIN_GLOBAL_PCA:
+			case GLOBAL_TOARGMIN_LOCAL_PCA:
+			case LOCAL_TOARGMIN_GLOBAL_PCA:
+			case LOCAL_TOARGMIN_LOCAL_PCA:
+				p2_ = LandscapeView.getPerpendicularInPlane(p1_, p1[i], p2[i]);
+				break;
+			default:
+				throw new RuntimeException("unhandled case " + strategy);
+			}
+			
+			plane1Vecs[i] = p1_;
+			plane2Vecs[i] = p2_;
+//			plane2Vecs[i] = MatUtil.vector(p1_.getNumElements());
 		}
 		
 		// fix mirrored plane vectors
