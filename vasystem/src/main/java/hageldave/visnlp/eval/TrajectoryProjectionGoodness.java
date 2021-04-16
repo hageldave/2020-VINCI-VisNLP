@@ -3,11 +3,14 @@ package hageldave.visnlp.eval;
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.DoubleUnaryOperator;
 import java.util.stream.IntStream;
 
 import org.ejml.simple.SimpleMatrix;
 import org.ejml.simple.SimpleSVD;
+import org.jblas.DoubleMatrix;
+import org.jblas.Singular;
 
 import hageldave.imagingkit.core.Img;
 import hageldave.imagingkit.core.util.ImageFrame;
@@ -21,8 +24,8 @@ import smile.stat.distribution.GaussianDistribution;
 public class TrajectoryProjectionGoodness {
 	
 	public static void main(String[] args) throws IOException {
-		File logfile = new File("../motionplanner/problem0/z.log");
-		PlaneOrientationStrategy strategy = PlaneOrientationStrategy.GLOBAL_PCA;
+		File logfile = new File("../motionplanner/problem1/z.log");
+		PlaneOrientationStrategy strategy = PlaneOrientationStrategy.LOCAL_TOARGMIN_LOCAL_PCA;
 		assess(logfile, strategy, true);
 	}
 	
@@ -83,9 +86,12 @@ public class TrajectoryProjectionGoodness {
 			double[][] meansAndVariances = DataPrep.getMeansAndVariances(Arrays.copyOfRange(data, skip, data.length));
 			DataPrep.normalizeData(data, meansAndVariances);
 //			DataPrep.normalizeData(data, DataPrep.getMeansAndVariances(data));
-			SimpleMatrix dataMatrix = MatUtil.rowmajorMat(data);
-			SimpleSVD<SimpleMatrix> svd = dataMatrix.svd(true);
-			SimpleMatrix pca = svd.getV().transpose();
+//			SimpleMatrix dataMatrix = MatUtil.rowmajorMat(data);
+			DoubleMatrix dataMatrix = new DoubleMatrix(data);
+//			SimpleSVD<SimpleMatrix> svd = dataMatrix.svd(true);
+			DoubleMatrix[] svd = Singular.sparseSVD(dataMatrix);
+//			SimpleMatrix pca = svd.getV().transpose();
+			SimpleMatrix pca = MatUtil.matrix(svd[2].columns, svd[2].rows, svd[2].transpose().data);
 			for(int k=0; k<log.numGraphQueries; k++){
 				pcas[k] = pca;
 			}
@@ -93,6 +99,7 @@ public class TrajectoryProjectionGoodness {
 		else {
 			// calculate local pcas for all graph queries ( = optimization steps)
 			double[][] dat = data;
+			AtomicInteger kDone = new AtomicInteger();
 			IntStream.range(0, log.numGraphQueries).parallel().forEach(k->{
 //			for(int k=0; k<log.numGraphQueries; k++){
 				System.out.println("calculating dataset weights ("+ k+"/"+log.numGraphQueries+")");
@@ -121,11 +128,16 @@ public class TrajectoryProjectionGoodness {
 //				localdata = Arrays.copyOfRange(localdata, skip, log.numGraphQueries);
 				DataPrep.normalizeData(localdata, DataPrep.getMeansAndVariances(localdata));
 
-				System.out.println("LandscapeView: calculating pca "+ k+"/"+log.numGraphQueries+")");
+				System.out.println("LandscapeView: calculating pca "+ kDone.getAndIncrement() +"/"+log.numGraphQueries+")");
 
-				SimpleMatrix dataMatrix = MatUtil.rowmajorMat(localdata);
-				SimpleSVD<SimpleMatrix> svd = dataMatrix.svd(false);
-				pcas[k] = svd.getV().transpose();
+//				SimpleMatrix dataMatrix = MatUtil.rowmajorMat(localdata);
+//				SimpleSVD<SimpleMatrix> svd = dataMatrix.svd(false);
+//				pcas[k] = svd.getV().transpose();
+//				pcas[k] = pcas[k].extractMatrix(0, 2, 0, pcas[k].numCols());
+				
+				DoubleMatrix dataMatrix = new DoubleMatrix(localdata);
+				DoubleMatrix[] svd = Singular.sparseSVD(dataMatrix);
+				pcas[k] = MatUtil.matrix(svd[2].columns, svd[2].rows, svd[2].transpose().data);
 				pcas[k] = pcas[k].extractMatrix(0, 2, 0, pcas[k].numCols());
 			}
 			);
@@ -230,7 +242,8 @@ public class TrajectoryProjectionGoodness {
 			int color = DefaultColorMap.S_PLASMA.interpolate(v);
 			px.setValue(color);
 		});
-		ImageFrame.display(img);
+		ImageFrame.display(img).setTitle(strategy.name());
+		System.gc();
 	}
 
 }
