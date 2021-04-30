@@ -36,7 +36,10 @@ public class TrajectoryProjectionGoodness {
 //			assess(log, strategy, true, 10);
 //		}
 		
-		assess(log, PlaneOrientationStrategy.LOCAL_PROMINENT_DIRECTIONS, false, 10);
+		assess(log, PlaneOrientationStrategy.GLOBAL_PROMDIR, false, 10);
+		assess(log, PlaneOrientationStrategy.LOCAL_PROMDIR, false, 10);
+		assess(log, PlaneOrientationStrategy.LOCAL_TOARGMIN_GLOBAL_PROMDIR, false, 10);
+		assess(log, PlaneOrientationStrategy.LOCAL_TOARGMIN_LOCAL_PROMDIR, false, 10);
 	}
 	
 	final static String USE_GLOBAL_PCA = "gpca";
@@ -52,8 +55,10 @@ public class TrajectoryProjectionGoodness {
 		LOCAL_TOARGMIN_GLOBAL_PCA(USE_GLOBAL_PCA),
 		LOCAL_TOARGMIN_LOCAL_PCA(USE_LOCAL_PCA),
 		LOCAL_PCA(USE_LOCAL_PCA),
-		GLOBAL_PROMINENT_DIRECTIONS(USE_GLOBAL_PROMINENT),
-		LOCAL_PROMINENT_DIRECTIONS(USE_LOCAL_PROMINENT),
+		GLOBAL_PROMDIR(USE_GLOBAL_PROMINENT),
+		LOCAL_PROMDIR(USE_LOCAL_PROMINENT),
+		LOCAL_TOARGMIN_GLOBAL_PROMDIR(USE_GLOBAL_PROMINENT),
+		LOCAL_TOARGMIN_LOCAL_PROMDIR(USE_LOCAL_PROMINENT),
 		;
 		
 		public final String globalPCA;
@@ -185,7 +190,7 @@ public class TrajectoryProjectionGoodness {
 			weights = Arrays.copyOfRange(weights, 0, unitSteps.length);
 			
 			int skip = Math.min(10, traj.length/8);
-//			skip=0;
+			skip=0;
 			unitSteps = Arrays.copyOfRange(unitSteps, skip, unitSteps.length);
 			weights = Arrays.copyOfRange(weights, skip, weights.length);
 			
@@ -331,12 +336,14 @@ public class TrajectoryProjectionGoodness {
 			case LOCAL_TOARGMIN_1D:
 			case LOCAL_TOARGMIN_GLOBAL_PCA:
 			case LOCAL_TOARGMIN_LOCAL_PCA:
+			case LOCAL_TOARGMIN_GLOBAL_PROMDIR:
+			case LOCAL_TOARGMIN_LOCAL_PROMDIR:
 				p1_ = MatUtil.normalizeInPlace(MatUtil.vectorOf(traj[idxLast]).minus(MatUtil.vectorOf(traj[idx1])));
 				break;
 			case GLOBAL_PCA:
 			case LOCAL_PCA:
-			case GLOBAL_PROMINENT_DIRECTIONS:
-			case LOCAL_PROMINENT_DIRECTIONS:
+			case GLOBAL_PROMDIR:
+			case LOCAL_PROMDIR:
 				p1_ = p1[i];
 				break;
 			default:
@@ -348,14 +355,16 @@ public class TrajectoryProjectionGoodness {
 			switch (strategy) {
 			case GLOBAL_PCA:
 			case LOCAL_PCA:
-			case GLOBAL_PROMINENT_DIRECTIONS:
-			case LOCAL_PROMINENT_DIRECTIONS:
+			case GLOBAL_PROMDIR:
+			case LOCAL_PROMDIR:
 				p2_ = p2[i];
 				break;
 			case GLOBAL_TOARGMIN_GLOBAL_PCA:
 			case GLOBAL_TOARGMIN_LOCAL_PCA:
 			case LOCAL_TOARGMIN_GLOBAL_PCA:
 			case LOCAL_TOARGMIN_LOCAL_PCA:
+			case LOCAL_TOARGMIN_GLOBAL_PROMDIR:
+			case LOCAL_TOARGMIN_LOCAL_PROMDIR:
 				p2_ = LandscapeView.getPerpendicularInPlane(p1_, p1[i], p2[i]);
 				break;
 			case LOCAL_TOARGMIN_1D:
