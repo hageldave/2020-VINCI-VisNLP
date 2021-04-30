@@ -15,19 +15,20 @@ public class DataPrep {
 				weightSum = weights[i];
 			}
 		}
+		double divBySum = 1/weightSum;
 		for(int j=0; j<mean.length; j++){
-			mean[j] /= weightSum;
+			mean[j] *= divBySum;
 		}
 		
 		double[] std = new double[mean.length];
 		for(int i=0; i<data.length; i++){
 			for(int j=0; j<mean.length; j++){
 				double v = data[i][j]-mean[j];
-				std[j] += v*v * weights[i];;
+				std[j] += v*v * weights[i];
 			}
 		}
 		for(int j=0; j<mean.length; j++){
-			std[j] /= weightSum;
+			std[j] *= divBySum;
 			std[j] = Math.sqrt(std[j]);
 		}
 		return new double[][]{mean,std};
