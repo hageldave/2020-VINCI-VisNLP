@@ -31,15 +31,16 @@ public class TrajectoryProjectionGoodness {
 		File logfile = new File("../motionplanner/problem2/z.log");
 		KomoLog log = KomoLog.loadLog(logfile);
 		
-//		for(PlaneOrientationStrategy strategy : PlaneOrientationStrategy.values()) {
-//			assess(log, strategy, false, 10);
-//			assess(log, strategy, true, 10);
-//		}
+		for(PlaneOrientationStrategy strategy : PlaneOrientationStrategy.values()) {
+			assess(log, strategy, false, 10);
+			if(!strategy.name().contains("PROMDIR"))
+				assess(log, strategy, true, 10);
+		}
 		
-		assess(log, PlaneOrientationStrategy.GLOBAL_PROMDIR, false, 10);
-		assess(log, PlaneOrientationStrategy.LOCAL_PROMDIR, false, 10);
-		assess(log, PlaneOrientationStrategy.LOCAL_TOARGMIN_GLOBAL_PROMDIR, false, 10);
-		assess(log, PlaneOrientationStrategy.LOCAL_TOARGMIN_LOCAL_PROMDIR, false, 10);
+//		assess(log, PlaneOrientationStrategy.GLOBAL_PROMDIR, false, 10);
+//		assess(log, PlaneOrientationStrategy.LOCAL_PROMDIR, false, 10);
+//		assess(log, PlaneOrientationStrategy.LOCAL_TOARGMIN_GLOBAL_PROMDIR, false, 10);
+//		assess(log, PlaneOrientationStrategy.LOCAL_TOARGMIN_LOCAL_PROMDIR, false, 10);
 	}
 	
 	final static String USE_GLOBAL_PCA = "gpca";
@@ -101,7 +102,7 @@ public class TrajectoryProjectionGoodness {
 		if(strategy.globalPCA.equals(USE_GLOBAL_PCA)){
 			// global pca
 			int skip = Math.min(10, traj.length/8);
-//			skip=0;
+			skip=0;
 			double[] weights;
 			if(inverseStepsizeWeighting)
 				weights = Arrays.stream(avgStepsize).map(h->1/h).toArray();
@@ -116,11 +117,11 @@ public class TrajectoryProjectionGoodness {
 			
 			DoubleMatrix dataMatrix = new DoubleMatrix(data);
 			// center argmin
-//			dataMatrix.subiRowVector(dataMatrix.getRow(dataMatrix.rows-1));
+			dataMatrix.subiRowVector(dataMatrix.getRow(dataMatrix.rows-1));
 			
 			DoubleMatrix weightmatrix = DoubleMatrix.diag(new DoubleMatrix(weights));
 			DoubleMatrix[] svd = Singular.sparseSVD(weightmatrix.mmul(dataMatrix));
-			SimpleMatrix pca = MatUtil.matrix(svd[2].columns, svd[2].rows, svd[2].transpose().data);
+			SimpleMatrix pca = MatUtil.matrix(svd[2].columns, svd[2].rows, svd[2].data);
 			for(int k=0; k<log.numGraphQueries; k++){
 				pcas[k] = pca;
 			}
@@ -165,7 +166,7 @@ public class TrajectoryProjectionGoodness {
 				DoubleMatrix weightedData = weightmatrix.mmul(dataMatrix);
 				try {
 					DoubleMatrix[] svd = Singular.sparseSVD(weightedData);
-					pcas[k] = MatUtil.matrix(svd[2].columns, svd[2].rows, svd[2].transpose().data);
+					pcas[k] = MatUtil.matrix(svd[2].columns, svd[2].rows, svd[2].data);
 					pcas[k] = pcas[k].extractMatrix(0, 2, 0, pcas[k].numCols());
 				} catch(LapackConvergenceException e) {
 					System.err.println(k + " : SVD did not converge. strategy: " + strategy.name() + " issw:" + inverseStepsizeWeighting );
