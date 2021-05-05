@@ -28,7 +28,7 @@ import smile.stat.distribution.GaussianDistribution;
 public class TrajectoryProjectionGoodness {
 	
 	public static void main(String[] args) throws IOException {
-		File logfile = new File("../motionplanner/problem2/z.log");
+		File logfile = new File("../motionplanner/problem1/z.log");
 		KomoLog log = KomoLog.loadLog(logfile);
 		
 		for(PlaneOrientationStrategy strategy : PlaneOrientationStrategy.values()) {
@@ -43,12 +43,12 @@ public class TrajectoryProjectionGoodness {
 //		assess(log, PlaneOrientationStrategy.LOCAL_TOARGMIN_LOCAL_PROMDIR, false, 10);
 	}
 	
-	final static String USE_GLOBAL_PCA = "gpca";
-	final static String USE_LOCAL_PCA = "lpca";
-	final static String USE_GLOBAL_PROMINENT = "gpdir";
-	final static String USE_LOCAL_PROMINENT = "lpdir";
+	public final static String USE_GLOBAL_PCA = "gpca";
+	public final static String USE_LOCAL_PCA = "lpca";
+	public final static String USE_GLOBAL_PROMINENT = "gpdir";
+	public final static String USE_LOCAL_PROMINENT = "lpdir";
 	
-	static enum PlaneOrientationStrategy {
+	public static enum PlaneOrientationStrategy {
 		LOCAL_TOARGMIN_1D(USE_GLOBAL_PCA),
 		GLOBAL_TOARGMIN_GLOBAL_PCA(USE_GLOBAL_PCA),
 		GLOBAL_PCA(USE_GLOBAL_PCA),
@@ -68,14 +68,8 @@ public class TrajectoryProjectionGoodness {
 			this.globalPCA = globalpca;
 		}
 	}
-
-	public static void assess(KomoLog log, PlaneOrientationStrategy strategy, boolean inverseStepsizeWeighting, int localWindowSize) throws IOException {
-		
-		double[][] traj = log.streamGraphQueriesX()
-				.map(MatUtil::stackVectors)
-				.map(x->x.getDDRM().data.clone())
-				.toArray(double[][]::new);
-
+	
+	public static SimpleMatrix[][] calcPlaneVecs(KomoLog log, double[][] traj, PlaneOrientationStrategy strategy, boolean inverseStepsizeWeighting, int localWindowSize) {
 		double[] avgStepsize = new double[log.numGraphQueries];
 		// calculate average step sizes for inversely weighting trajectory points
 		for(int i=0; i<log.numGraphQueries-1; i++) {
@@ -393,30 +387,101 @@ public class TrajectoryProjectionGoodness {
 			}
 		}
 		
+		return new SimpleMatrix[][] {plane1Vecs,plane2Vecs};
+	}
+
+	public static void assess(KomoLog log, PlaneOrientationStrategy strategy, boolean inverseStepsizeWeighting, int localWindowSize) throws IOException {
+		
+		double[][] traj = log.streamGraphQueriesX()
+				.map(MatUtil::stackVectors)
+				.map(x->x.getDDRM().data.clone())
+				.toArray(double[][]::new);
+
+		SimpleMatrix[][] planeVecs = calcPlaneVecs(log,traj,strategy,inverseStepsizeWeighting,localWindowSize);
+		SimpleMatrix[] plane1Vecs = planeVecs[0];
+		SimpleMatrix[] plane2Vecs = planeVecs[1];
+		
 		// project all trajectory segments
 		double[][] trajDirGoodness = new double[log.numGraphQueries][log.numGraphQueries-1];
-		for(int k=0; k<log.numGraphQueries; k++) {
-			SimpleMatrix p1_ = plane1Vecs[k];
-			SimpleMatrix p2_ = plane2Vecs[k];
-			SimpleMatrix projection = MatUtil.rowmajorMat(new double[][] {p1_.getDDRM().data,p2_.getDDRM().data});
-			for(int i=1; i<log.numGraphQueries; i++) {
-				SimpleMatrix segment = MatUtil.vectorOf(traj[i]).minus(MatUtil.vectorOf(traj[i-1]));
-				SimpleMatrix segDir = MatUtil.normalize(segment);
-				// project
-				SimpleMatrix p = projection.mult(segDir);
-				trajDirGoodness[k][i-1] = p.normF();
-			}
+		
+		SimpleMatrix[] fwdDiff = new SimpleMatrix[log.numGraphQueries-1];
+		for(int i=0; i<log.numGraphQueries-1; i++) {
+			// calc fwd diff
+			SimpleMatrix diff = MatUtil.vectorOf(traj[i+1]).minus(MatUtil.vectorOf(traj[1]));
+			fwdDiff[i] = diff;
 		}
-		double max = Arrays.stream(trajDirGoodness).flatMapToDouble(Arrays::stream).max().getAsDouble();
-		System.out.println("max p=" + max );
-		Img img = new Img(log.numGraphQueries-1, log.numGraphQueries);
-		img.forEach(px->{
-			double v = trajDirGoodness[px.getY()][px.getX()];
-			int color = DefaultColorMap.S_PLASMA.interpolate(v);
-			px.setValue(color);
-		});
-		ImageSaver.saveImage(img.toBufferedImage(), String.format("%s-%s.png", strategy.name(), inverseStepsizeWeighting?"issw":""));
+		// calculate goodness (level of representation in projection)
+		{
+			for(int k=0; k<log.numGraphQueries; k++) {
+				SimpleMatrix p1_ = plane1Vecs[k];
+				SimpleMatrix p2_ = plane2Vecs[k];
+				SimpleMatrix projection = MatUtil.rowmajorMat(new double[][] {p1_.getDDRM().data,p2_.getDDRM().data});
+				for(int i=1; i<log.numGraphQueries; i++) {
+					SimpleMatrix segment = fwdDiff[i-1];
+					SimpleMatrix segDir = MatUtil.normalize(segment);
+					// project
+					SimpleMatrix p = projection.mult(segDir);
+					trajDirGoodness[k][i-1] = p.normF();
+				}
+			}
+			double max = Arrays.stream(trajDirGoodness).flatMapToDouble(Arrays::stream).max().getAsDouble();
+			System.out.println("max p=" + max );
+			Img img = new Img(log.numGraphQueries-1, log.numGraphQueries);
+			img.forEach(px->{
+				double v = trajDirGoodness[px.getY()][px.getX()];
+				int color = DefaultColorMap.S_PLASMA.interpolate(v);
+				px.setValue(color);
+			});
+			ImageSaver.saveImage(img.toBufferedImage(), String.format("%s-%s.png", strategy.name(), inverseStepsizeWeighting?"issw":""));
+		}
+		
+		// calculate goodness for smoothed version (level of representation in projection)
+		SimpleMatrix[] fwdDiffSmooth = averageSteps(fwdDiff, 10);
+		{
+			for(int k=0; k<log.numGraphQueries; k++) {
+				SimpleMatrix p1_ = plane1Vecs[k];
+				SimpleMatrix p2_ = plane2Vecs[k];
+				SimpleMatrix projection = MatUtil.rowmajorMat(new double[][] {p1_.getDDRM().data,p2_.getDDRM().data});
+				for(int i=1; i<log.numGraphQueries; i++) {
+					SimpleMatrix segment = fwdDiffSmooth[i-1];
+					SimpleMatrix segDir = MatUtil.normalize(segment);
+					// project
+					SimpleMatrix p = projection.mult(segDir);
+					trajDirGoodness[k][i-1] = p.normF();
+				}
+			}
+			double max = Arrays.stream(trajDirGoodness).flatMapToDouble(Arrays::stream).max().getAsDouble();
+			System.out.println("max p=" + max );
+			Img img = new Img(log.numGraphQueries-1, log.numGraphQueries);
+			img.forEach(px->{
+				double v = trajDirGoodness[px.getY()][px.getX()];
+				int color = DefaultColorMap.S_PLASMA.interpolate(v);
+				px.setValue(color);
+			});
+			ImageSaver.saveImage(img.toBufferedImage(), String.format("avg-%s-%s.png", strategy.name(), inverseStepsizeWeighting?"issw":""));
+		}
+		
 		System.gc();
+	}
+	
+	
+	static SimpleMatrix[] averageSteps(SimpleMatrix[] steps, int window) {
+		SimpleMatrix[] smoothed = steps.clone();
+		IntStream.range(0, steps.length)
+		.parallel()
+		.forEach((i)-> 
+		{
+//		for(int i=0; i<log.numGraphQueries-1; i++) {
+			SimpleMatrix aggr = MatUtil.vector(steps[0].getNumElements());
+			for(int j=0; j<window; j++) {
+				int k = (i-window/2)+j;
+				if(k >= 0 && k < steps.length) {
+					aggr = aggr.plus(steps[k]);
+				}
+			}
+			smoothed[i] = aggr;
+		});
+		return smoothed;
 	}
 
 }

@@ -60,6 +60,8 @@ import hageldave.jplotter.util.Pair;
 import hageldave.jplotter.util.Utils;
 import hageldave.visnlp.data.KomoLog;
 import hageldave.visnlp.data.KomoRestClient;
+import hageldave.visnlp.eval.TrajectoryProjectionGoodness;
+import hageldave.visnlp.eval.TrajectoryProjectionGoodness.PlaneOrientationStrategy;
 import hageldave.visnlp.util.CheckerBoardRenderer;
 import hageldave.visnlp.util.DataPrep;
 import hageldave.visnlp.util.FeatureHandle;
@@ -171,144 +173,144 @@ public class LandscapeView {
 				.map(v->v.getDDRM().data)
 				.toArray(double[][]::new);
 
-		{				
-			double[] avgStepsize = new double[log.numGraphQueries];
-			// calculate average step sizes for inversely weighting trajectory points
-			double[][] stepsizeData = trajecData;
-			for(int i=0; i<log.numGraphQueries-1; i++) {
-				SimpleMatrix step = MatUtil.vectorOf(stepsizeData[i+1]).minus(MatUtil.vectorOf(stepsizeData[i]));
-				double sum = step.elementSum();
-				avgStepsize[i] = step.normF()+0.0001;
-			} 
-			avgStepsize[log.numGraphQueries-1] = avgStepsize[log.numGraphQueries-2];
-			// smooth stepsizes for averaging
-			DataPrep.boxSmoothing(avgStepsize, avgStepsize, 7);
-
-			// calculate pca dataset weights from violations
-			double[][] weights = new double[log.numGraphQueries][dimensionality];
-			for(int i=0; i<log.numGraphQueries; i++) {
-				// initialize weights uniformly
-				for(int j=0; j<dimensionality; j++)
-					weights[i][j] = 1.0/dimensionality;
-
-				double[] phi = log.getGraphQueryPhi(i);
-				// equalities
-				for(int p : log.equalityFeatureIndices) {
-					double phiVal = Math.abs(phi[p]);
-					// phiVars contain robot time steps corresponding to this feature
-					int[] phiVars = log.featureVariables.get(p).stream().mapToInt(Number::intValue).toArray();
-					// find block for each of the robot times
-					for(int t : phiVars) {
-						for(int j=log.varStarts[t]; j<log.varStarts[t]+log.varDims[t]; j++) {
-							weights[i][j] += phiVal;
-						}
-					}
-				}
-				// inequalities
-				for(int p : log.inequalityFeatureIndices) {
-					double phiVal = Math.max(0,phi[p]);
-					// phiVars contain robot time steps corresponding to this feature
-					int[] phiVars = log.featureVariables.get(p).stream().mapToInt(Number::intValue).toArray();
-					// find block for each of the robot times
-					for(int t : phiVars) {
-						for(int j=log.varStarts[t]; j<log.varStarts[t]+log.varDims[t]; j++) {
-							weights[i][j] = phiVal;
-						}
-					}
-				}
-				// normalize weights
-				double sum = Arrays.stream(weights[i]).sum();
-				double max = Arrays.stream(weights[i]).max().getAsDouble();
-				double norm = 1.0/sum;
-				double maxTo1 = 1.0/(max*norm);
-				double normalization = norm*maxTo1;
-				for(int j=0; j<dimensionality; j++)
-					weights[i][j] *= normalization;
-			}
-
-			double[][] data = DataPrep.copy(trajecData);
-
+//		{				
+//			double[] avgStepsize = new double[log.numGraphQueries];
+//			// calculate average step sizes for inversely weighting trajectory points
+//			double[][] stepsizeData = trajecData;
+//			for(int i=0; i<log.numGraphQueries-1; i++) {
+//				SimpleMatrix step = MatUtil.vectorOf(stepsizeData[i+1]).minus(MatUtil.vectorOf(stepsizeData[i]));
+//				double sum = step.elementSum();
+//				avgStepsize[i] = step.normF()+0.0001;
+//			} 
+//			avgStepsize[log.numGraphQueries-1] = avgStepsize[log.numGraphQueries-2];
+//			// smooth stepsizes for averaging
+//			DataPrep.boxSmoothing(avgStepsize, avgStepsize, 7);
+//
+//			// calculate pca dataset weights from violations
+//			double[][] weights = new double[log.numGraphQueries][dimensionality];
+//			for(int i=0; i<log.numGraphQueries; i++) {
+//				// initialize weights uniformly
+//				for(int j=0; j<dimensionality; j++)
+//					weights[i][j] = 1.0/dimensionality;
+//
+//				double[] phi = log.getGraphQueryPhi(i);
+//				// equalities
+//				for(int p : log.equalityFeatureIndices) {
+//					double phiVal = Math.abs(phi[p]);
+//					// phiVars contain robot time steps corresponding to this feature
+//					int[] phiVars = log.featureVariables.get(p).stream().mapToInt(Number::intValue).toArray();
+//					// find block for each of the robot times
+//					for(int t : phiVars) {
+//						for(int j=log.varStarts[t]; j<log.varStarts[t]+log.varDims[t]; j++) {
+//							weights[i][j] += phiVal;
+//						}
+//					}
+//				}
+//				// inequalities
+//				for(int p : log.inequalityFeatureIndices) {
+//					double phiVal = Math.max(0,phi[p]);
+//					// phiVars contain robot time steps corresponding to this feature
+//					int[] phiVars = log.featureVariables.get(p).stream().mapToInt(Number::intValue).toArray();
+//					// find block for each of the robot times
+//					for(int t : phiVars) {
+//						for(int j=log.varStarts[t]; j<log.varStarts[t]+log.varDims[t]; j++) {
+//							weights[i][j] = phiVal;
+//						}
+//					}
+//				}
+//				// normalize weights
+//				double sum = Arrays.stream(weights[i]).sum();
+//				double max = Arrays.stream(weights[i]).max().getAsDouble();
+//				double norm = 1.0/sum;
+//				double maxTo1 = 1.0/(max*norm);
+//				double normalization = norm*maxTo1;
+//				for(int j=0; j<dimensionality; j++)
+//					weights[i][j] *= normalization;
+//			}
+//
+//			double[][] data = DataPrep.copy(trajecData);
+//
+////			if(Boolean.valueOf(false))
+//			{	// inverse weighting by average step size (accounting for decreasing step sizes over the process)
+//				double[][] data_ = data;
+//				data = IntStream.range(0, data_.length)
+//						.mapToObj(i->{
+//							double[] row = data_[i];
+//							SimpleMatrix weightedRow = MatUtil.vectorOf(row)
+//									.scale(1.0/avgStepsize[i])
+//									;
+//							return weightedRow.getDDRM().data;
+//						})
+//						.toArray(double[][]::new);
+//			}
+//			int skip = trajecData.length/8;
+//			double[][] meansAndVariances = DataPrep.getMeansAndVariances(Arrays.copyOfRange(data, skip, data.length));
+//			DataPrep.normalizeData(data, meansAndVariances);
+//
 //			if(Boolean.valueOf(false))
-			{	// inverse weighting by average step size (accounting for decreasing step sizes over the process)
-				double[][] data_ = data;
-				data = IntStream.range(0, data_.length)
-						.mapToObj(i->{
-							double[] row = data_[i];
-							SimpleMatrix weightedRow = MatUtil.vectorOf(row)
-									.scale(1.0/avgStepsize[i])
-									;
-							return weightedRow.getDDRM().data;
-						})
-						.toArray(double[][]::new);
-			}
-			int skip = trajecData.length/8;
-			double[][] meansAndVariances = DataPrep.getMeansAndVariances(Arrays.copyOfRange(data, skip, data.length));
-			DataPrep.normalizeData(data, meansAndVariances);
-
-			if(Boolean.valueOf(false))
-			{	// apply weighting by constraint violation
-				double[][] data_ = data;
-				data = IntStream.range(0, data.length)
-						.mapToObj(i->{
-							double[] row = data_[i];
-							double[] weight = weights[i];
-							SimpleMatrix weightedRow = MatUtil.vectorOf(row)
-									.elementMult(MatUtil.vectorOf(weight))
-									;
-							return weightedRow.getDDRM().data;
-						})
-						.toArray(double[][]::new);
-			}
-			
-			// gloabl pca
-			{
-				DataPrep.normalizeData(data, DataPrep.getMeansAndVariances(data));
-				SimpleMatrix dataMatrix = MatUtil.rowmajorMat(data);
-				SimpleSVD<SimpleMatrix> svd = dataMatrix.svd(true);
-				this.globalPCA = svd.getV().transpose();
-			}
-			
-			
-			for(int k=0; k<log.numGraphQueries; k++){
-				this.pcas[k] = globalPCA;
-			}
-			// calculate local pcas for all graph queries ( = optimization steps)
-			if(Boolean.valueOf(false))
-			for(int k=0; k<log.numGraphQueries; k++){
-				System.out.println("LandscapeView: calculating dataset weights ("+ k+"/"+log.numGraphQueries+")");
-
-				double[][] localdata = data;
-//				if(Boolean.valueOf(false))
-				{
-					// localization (weighting by trajectory point index difference)
-					GaussianDistribution distrib = new GaussianDistribution(0, 3/*windowsize*/);
-					double distribScale = 1/distrib.p(0);
-					int k_=k;
-					DoubleUnaryOperator kernel = (idx)->distrib.p(idx-k_)*distribScale;
-					double[][] data_ = data;
-					localdata = IntStream.range(0,data.length)
-							.mapToObj(i->{
-								double[] row = data_[i];
-								SimpleMatrix weightedRow = MatUtil.vectorOf(row)
-										.scale(kernel.applyAsDouble(i))
-										;
-								return weightedRow.getDDRM().data;
-							})
-							.toArray(double[][]::new);
-				}
-
-				// get rid of initialization
-				localdata = Arrays.copyOfRange(localdata, skip, log.numGraphQueries);
-				DataPrep.normalizeData(localdata, DataPrep.getMeansAndVariances(localdata));
-
-				System.out.println("LandscapeView: calculating pca "+ k+"/"+log.numGraphQueries+")");
-
-				SimpleMatrix dataMatrix = MatUtil.rowmajorMat(localdata);
-				SimpleSVD<SimpleMatrix> svd = dataMatrix.svd(false);
-				this.pcas[k] = svd.getV().transpose();
-			}
-		}
-
+//			{	// apply weighting by constraint violation
+//				double[][] data_ = data;
+//				data = IntStream.range(0, data.length)
+//						.mapToObj(i->{
+//							double[] row = data_[i];
+//							double[] weight = weights[i];
+//							SimpleMatrix weightedRow = MatUtil.vectorOf(row)
+//									.elementMult(MatUtil.vectorOf(weight))
+//									;
+//							return weightedRow.getDDRM().data;
+//						})
+//						.toArray(double[][]::new);
+//			}
+//			
+//			// gloabl pca
+//			{
+//				DataPrep.normalizeData(data, DataPrep.getMeansAndVariances(data));
+//				SimpleMatrix dataMatrix = MatUtil.rowmajorMat(data);
+//				SimpleSVD<SimpleMatrix> svd = dataMatrix.svd(true);
+//				this.globalPCA = svd.getV().transpose();
+//			}
+//			
+//			
+//			for(int k=0; k<log.numGraphQueries; k++){
+//				this.pcas[k] = globalPCA;
+//			}
+//			// calculate local pcas for all graph queries ( = optimization steps)
+//			if(Boolean.valueOf(false))
+//			for(int k=0; k<log.numGraphQueries; k++){
+//				System.out.println("LandscapeView: calculating dataset weights ("+ k+"/"+log.numGraphQueries+")");
+//
+//				double[][] localdata = data;
+////				if(Boolean.valueOf(false))
+//				{
+//					// localization (weighting by trajectory point index difference)
+//					GaussianDistribution distrib = new GaussianDistribution(0, 3/*windowsize*/);
+//					double distribScale = 1/distrib.p(0);
+//					int k_=k;
+//					DoubleUnaryOperator kernel = (idx)->distrib.p(idx-k_)*distribScale;
+//					double[][] data_ = data;
+//					localdata = IntStream.range(0,data.length)
+//							.mapToObj(i->{
+//								double[] row = data_[i];
+//								SimpleMatrix weightedRow = MatUtil.vectorOf(row)
+//										.scale(kernel.applyAsDouble(i))
+//										;
+//								return weightedRow.getDDRM().data;
+//							})
+//							.toArray(double[][]::new);
+//				}
+//
+//				// get rid of initialization
+//				localdata = Arrays.copyOfRange(localdata, skip, log.numGraphQueries);
+//				DataPrep.normalizeData(localdata, DataPrep.getMeansAndVariances(localdata));
+//
+//				System.out.println("LandscapeView: calculating pca "+ k+"/"+log.numGraphQueries+")");
+//
+//				SimpleMatrix dataMatrix = MatUtil.rowmajorMat(localdata);
+//				SimpleSVD<SimpleMatrix> svd = dataMatrix.svd(false);
+//				this.pcas[k] = svd.getV().transpose();
+//			}
+//		}
+//
 //		// fix mirrored pca vectors
 //		for(int i=1; i<log.numGraphQueries; i++) {
 //			System.out.println("checking pca mirroring " + i);
@@ -324,65 +326,80 @@ public class LandscapeView {
 //				}
 //			}
 //		}
-
-		//		// wait for hessian directions to be calculated
-		//		while(!hessianCalcTasks.isEmpty()) {
-		//			Iterator<ForkJoinTask<?>> it = hessianCalcTasks.iterator();
-		//			while(it.hasNext()) {
-		//				ForkJoinTask<?> task = it.next();
-		//				if(task.isDone())
-		//					it.remove();
-		//			}
-		//		}
-		//		for(int k=0; k<log.numGraphQueries; k++){
-		//			pcas[k]=pHdirs[k];
-		//		}
-		System.gc();
+//
+//		//		// wait for hessian directions to be calculated
+//		//		while(!hessianCalcTasks.isEmpty()) {
+//		//			Iterator<ForkJoinTask<?>> it = hessianCalcTasks.iterator();
+//		//			while(it.hasNext()) {
+//		//				ForkJoinTask<?> task = it.next();
+//		//				if(task.isDone())
+//		//					it.remove();
+//		//			}
+//		//		}
+//		//		for(int k=0; k<log.numGraphQueries; k++){
+//		//			pcas[k]=pHdirs[k];
+//		//		}
+//		System.gc();
 		
-
-
-		SimpleMatrix[] p1,p2,p1T,p2T, pca2D;
-		p1=new SimpleMatrix[log.numGraphQueries];
-		p2=new SimpleMatrix[log.numGraphQueries];
-		p1T=new SimpleMatrix[log.numGraphQueries];
-		p2T=new SimpleMatrix[log.numGraphQueries];
-		pca2D=new SimpleMatrix[log.numGraphQueries];
-		for(int k=0; k<log.numGraphQueries; k++){
-			// plane spanning vectors
-			p1T[k] = pcas[k].extractVector(true, 0);
-			p2T[k] = pcas[k].extractVector(true, 1);
-			p1[k]=p1T[k].transpose();
-			p2[k]=p2T[k].transpose();
-			pca2D[k] = pcas[k].extractMatrix(0, 2, 0, pcas[k].numCols());
-		}
+		SimpleMatrix[][] planeVecs = TrajectoryProjectionGoodness.calcPlaneVecs(log,trajecData,PlaneOrientationStrategy.LOCAL_TOARGMIN_LOCAL_PCA, false, 10);
+		SimpleMatrix[] plane1Vecs = planeVecs[0];
+		SimpleMatrix[] plane2Vecs = planeVecs[1];
 		
-		// precalculate plane vectors for single optimization steps
-		SimpleMatrix[] plane1Vecs = new SimpleMatrix[log.numGraphQueries];
-		SimpleMatrix[] plane2Vecs = new SimpleMatrix[log.numGraphQueries];
+		this.pcas = new SimpleMatrix[log.numGraphQueries];
 		for(int i=0; i<log.numGraphQueries; i++) {
-			int idx1 = i;
-			int idx2 = log.numGraphQueries-1;
-			if(idx1 == log.numGraphQueries-1) {
-				idx1--;
-			}
-			SimpleMatrix p1_ = MatUtil.normalizeInPlace(MatUtil.vectorOf(trajecData[idx2]).minus(MatUtil.vectorOf(trajecData[idx1])));
-			SimpleMatrix p2_ = getPerpendicularInPlane(p1_, p1[i], p2[i]);
-			plane1Vecs[i] = p1_;
-			plane2Vecs[i] = p2_;
+			this.pcas[i] = MatUtil.rowmajorMat(new double[][] {plane1Vecs[i].getDDRM().data, plane2Vecs[i].getDDRM().data});
 		}
 		
-		// fix mirrored plane vectors
-		for(int i=1; i<log.numGraphQueries; i++) {
-			System.out.println("checking pca mirroring " + i);
-			SimpleMatrix v1 = plane2Vecs[i-1];
-			SimpleMatrix v2 = plane2Vecs[i];
-			double dot = v1.dot(v2);
-			if(dot < 0) {
-				for(int k=0; k<v2.getNumElements(); k++) {
-						v2.set(k, -v2.get(k));
-				}
-			}
-		}
+		SimpleMatrix[][] globalPlaneVecs = TrajectoryProjectionGoodness.calcPlaneVecs(log,trajecData,PlaneOrientationStrategy.GLOBAL_PCA, false, 10);
+		this.globalPCA = MatUtil.rowmajorMat(new double[][] {globalPlaneVecs[0][0].getDDRM().data, globalPlaneVecs[1][0].getDDRM().data});
+		
+
+
+//		SimpleMatrix[] p1,p2,p1T,p2T, pca2D;
+//		p1=new SimpleMatrix[log.numGraphQueries];
+//		p2=new SimpleMatrix[log.numGraphQueries];
+//		p1T=new SimpleMatrix[log.numGraphQueries];
+//		p2T=new SimpleMatrix[log.numGraphQueries];
+//		pca2D=new SimpleMatrix[log.numGraphQueries];
+//		for(int k=0; k<log.numGraphQueries; k++){
+//			// plane spanning vectors
+//			p1T[k] = pcas[k].extractVector(true, 0);
+//			p2T[k] = pcas[k].extractVector(true, 1);
+//			p1[k]=p1T[k].transpose();
+//			p2[k]=p2T[k].transpose();
+//			pca2D[k] = pcas[k].extractMatrix(0, 2, 0, pcas[k].numCols());
+//		}
+//		
+//		// precalculate plane vectors for single optimization steps
+//		SimpleMatrix[] plane1Vecs = new SimpleMatrix[log.numGraphQueries];
+//		SimpleMatrix[] plane2Vecs = new SimpleMatrix[log.numGraphQueries];
+//		for(int i=0; i<log.numGraphQueries; i++) {
+//			int idx1 = i;
+//			int idx2 = log.numGraphQueries-1;
+//			if(idx1 == log.numGraphQueries-1) {
+//				idx1--;
+//			}
+//			SimpleMatrix p1_ = MatUtil.normalizeInPlace(MatUtil.vectorOf(trajecData[idx2]).minus(MatUtil.vectorOf(trajecData[idx1])));
+//			SimpleMatrix p2_ = getPerpendicularInPlane(p1_, p1[i], p2[i]);
+//			plane1Vecs[i] = p1_;
+//			plane2Vecs[i] = p2_;
+//		}
+//		
+//		// fix mirrored plane vectors
+//		for(int i=1; i<log.numGraphQueries; i++) {
+//			System.out.println("checking pca mirroring " + i);
+//			SimpleMatrix v1 = plane2Vecs[i-1];
+//			SimpleMatrix v2 = plane2Vecs[i];
+//			double dot = v1.dot(v2);
+//			if(dot < 0) {
+//				for(int k=0; k<v2.getNumElements(); k++) {
+//						v2.set(k, -v2.get(k));
+//				}
+//			}
+//		}
+		
+		
+		
 
 		// build viz
 
